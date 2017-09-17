@@ -1,0 +1,11 @@
+[package]
+authors = ["David Barnett <david@barnett.net.nz>"]
+name = "snek"
+version = "0.1.0"
+
+[dependencies]
+ggez = "0.3.3"
+recs = "2.0.1"
+
+[features]
+default = ["ggez/cargo-resource-root"]
