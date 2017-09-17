@@ -22,6 +22,7 @@ struct MainState {
     tick: Duration,
     tick_duration: u32,
     input: Option<Direction>,
+    dot: Option<EntityId>,
 }
 
 impl MainState {
@@ -43,44 +44,66 @@ impl MainState {
             tick: Duration::new(0, 0),
             tick_duration: 250_000_000,
             input: None,
+            dot: None,
         }
     }
 }
 
 impl EventHandler for MainState {
-
     fn update(&mut self, ctx: &mut Context, dt: Duration) -> GameResult<()> {
 
-
         self.tick += dt;
-        if self.tick > Duration::new(0, self.tick_duration) {
-            self.tick = Duration::new(0,0);
+        // check if an update tick is in order
+        if self.tick <= Duration::new(0, self.tick_duration) {
+            return Ok(());
+        }
 
-            let direction = match &self.input {
-                &Some(ref dir) => {
-                    let direction = self.ecs.borrow_mut::<Direction>(self.player).unwrap();
-                    let dir = dir.clone();
-                    if direction.oppisite() != dir {
-                        *direction = dir;
-                    }
-                    direction.clone()
-                },
-                &None => self.ecs.borrow::<Direction>(self.player).unwrap().clone(),
-            };
-            // reset buffered input
-            self.input = None;
+        self.tick = Duration::new(0, 0);
 
-            {
-                let mut point = self.ecs.borrow_mut::<Point>(self.player).unwrap();
-                direction.update_point(&mut point, 10.0);
+        let direction = match &self.input {
+            &Some(ref dir) => {
+                let direction = self.ecs.borrow_mut::<Direction>(self.player).unwrap();
+                let dir = dir.clone();
+                if direction.oppisite() != dir {
+                    *direction = dir;
+                }
+                direction.clone()
             }
+            &None => self.ecs.borrow::<Direction>(self.player).unwrap().clone(),
+        };
+        // reset buffered input
+        self.input = None;
 
-            {
-                let path = self.ecs.borrow_mut::<VecDeque<Direction>>(self.player).unwrap();
+        {
+            let mut point = self.ecs.borrow_mut::<Point>(self.player).unwrap();
+            direction.update_point(&mut point, 10.0);
+        }
+
+        let mut keep_tail = false;
+
+        if let Some(dot_id) = self.dot {
+            let pos = self.ecs.borrow::<Point>(self.player).unwrap();
+            let dot_pos = self.ecs.borrow::<Point>(dot_id).unwrap();
+
+            if dot_pos == pos {
+                keep_tail = true;
+
+            }
+            
+        }
+
+
+        {
+            let path = self.ecs
+                .borrow_mut::<VecDeque<Direction>>(self.player)
+                .unwrap();
+
+            if !keep_tail {
                 let _ = path.pop_back();
-                let _ = path.push_front(direction);
             }
-        } 
+
+            let _ = path.push_front(direction);
+        }
 
         Ok(())
     }
@@ -90,11 +113,10 @@ impl EventHandler for MainState {
 
 
         graphics::set_line_width(ctx, 8.0);
-        let _ = graphics::set_color(ctx, Color::from((100,100,255)));
+        let _ = graphics::set_color(ctx, Color::from((100, 100, 255)));
         let path = self.ecs.borrow::<VecDeque<Direction>>(self.player).unwrap();
         let point = self.ecs.borrow::<Point>(self.player).unwrap();
-        let _ = graphics::line(ctx, Direction::to_points(point, path, 10.0).as_ref() );
-
+        let _ = graphics::line(ctx, Direction::to_points(point, path, 10.0).as_ref());
 
         graphics::present(ctx);
         Ok(())
@@ -106,7 +128,7 @@ impl EventHandler for MainState {
             Keycode::D => Some(Direction::East),
             Keycode::S => Some(Direction::South),
             Keycode::A => Some(Direction::West),
-            _ => { return },
+            _ => return,
         };
     }
 }
@@ -114,7 +136,7 @@ impl EventHandler for MainState {
 fn main() {
     let conf = Conf::new();
 
-    let mut context = Context::load_from_conf("snek","snek", conf).unwrap();
+    let mut context = Context::load_from_conf("snek", "snek", conf).unwrap();
     let mut state = MainState::new();
 
     if let Err(err) = run(&mut context, &mut state) {

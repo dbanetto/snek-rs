@@ -18,7 +18,6 @@ pub enum Direction {
 }
 
 impl Direction {
-
     pub fn oppisite(&self) -> Self {
         match self {
             &Direction::North => Direction::South,
@@ -30,10 +29,10 @@ impl Direction {
 
     pub fn update_point(&self, pnt: &mut Point, delta: f32) {
         match self {
-            &Direction::North => { pnt.y -= delta },
-            &Direction::East => { pnt.x += delta },
-            &Direction::South => { pnt.y += delta },
-            &Direction::West => { pnt.x -= delta },
+            &Direction::North => pnt.y -= delta,
+            &Direction::East => pnt.x += delta,
+            &Direction::South => pnt.y += delta,
+            &Direction::West => pnt.x -= delta,
         }
     }
 
