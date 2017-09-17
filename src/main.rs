@@ -1,5 +1,6 @@
 extern crate ggez;
 extern crate recs;
+extern crate rand;
 
 mod ecs;
 
@@ -7,6 +8,8 @@ use std::time::Duration;
 use std::collections::VecDeque;
 
 use ecs::*;
+use rand::{Rng, ThreadRng};
+use rand::distributions::{IndependentSample, Range};
 
 use recs::*;
 use ggez::conf::Conf;
@@ -82,14 +85,37 @@ impl EventHandler for MainState {
         let mut keep_tail = false;
 
         if let Some(dot_id) = self.dot {
-            let pos = self.ecs.borrow::<Point>(self.player).unwrap();
-            let dot_pos = self.ecs.borrow::<Point>(dot_id).unwrap();
+            {
+                let pos = self.ecs.borrow::<Point>(self.player).unwrap();
+                let dot_pos = self.ecs.borrow::<Point>(dot_id).unwrap();
 
-            if dot_pos == pos {
-                keep_tail = true;
-
+                if dot_pos == pos {
+                    keep_tail = true;
+                }
             }
+
+            if keep_tail {
+                let _ = self.ecs.destroy_entity(dot_id);
+                self.dot = None;
+            }
+        } else {
+
+            let screen = graphics::get_screen_coordinates(ctx);
+            let x_range = rand::distributions::Range::new(1, (screen.w / 10.0) as u32 - 1 );
+            let y_range = rand::distributions::Range::new(1, (-screen.h / 10.0) as u32 - 1 );
+            let mut rng = rand::thread_rng();
+
+            let x: f32 = x_range.ind_sample(&mut rng) as f32 * 10.0;
+            let y: f32 = y_range.ind_sample(&mut rng) as f32 * 10.0;
+
+            let dot_pos = Point::new(x, y);
+            println!("{:?}", dot_pos);
+            println!("{:?}", screen);
+
+            let dot_id = self.ecs.create_entity();
+            let _ = self.ecs.set(dot_id, dot_pos);
             
+            self.dot = Some(dot_id);
         }
 
 
@@ -117,6 +143,12 @@ impl EventHandler for MainState {
         let path = self.ecs.borrow::<VecDeque<Direction>>(self.player).unwrap();
         let point = self.ecs.borrow::<Point>(self.player).unwrap();
         let _ = graphics::line(ctx, Direction::to_points(point, path, 10.0).as_ref());
+
+        if let Some(dot_id) = self.dot {
+            let _ = graphics::set_color(ctx, Color::from((255, 100, 100)));
+            let point = self.ecs.borrow::<Point>(dot_id).unwrap();
+            let _ = graphics::circle(ctx, graphics::DrawMode::Fill, *point, 5.0, 5);
+        }
 
         graphics::present(ctx);
         Ok(())
