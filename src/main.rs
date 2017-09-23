@@ -52,7 +52,43 @@ impl MainState {
     }
 }
 
+impl MainState {
+
+    fn update_direction(&mut self) -> Direction {
+        match &self.input {
+            &Some(ref dir) => {
+                let direction = self.ecs.borrow_mut::<Direction>(self.player).unwrap();
+                let dir = dir.clone();
+                if direction.oppisite() != dir {
+                    *direction = dir;
+                }
+                direction.clone()
+            }
+            &None => self.ecs.borrow::<Direction>(self.player).unwrap().clone(),
+        }
+    }
+
+    fn create_dot(&mut self, ctx: &mut Context) {
+            let screen = graphics::get_screen_coordinates(ctx);
+            let x_range = rand::distributions::Range::new(1, (screen.w / 10.0) as u32 - 1);
+            let y_range = rand::distributions::Range::new(1, (-screen.h / 10.0) as u32 - 1);
+            let mut rng = rand::thread_rng();
+
+            let x: f32 = x_range.ind_sample(&mut rng) as f32 * 10.0;
+            let y: f32 = y_range.ind_sample(&mut rng) as f32 * 10.0;
+
+            let dot_pos = Point::new(x, y);
+
+            let dot_id = self.ecs.create_entity();
+            let _ = self.ecs.set(dot_id, dot_pos);
+
+            self.dot = Some(dot_id);
+    }
+
+}
+
 impl EventHandler for MainState {
+
     fn update(&mut self, ctx: &mut Context, dt: Duration) -> GameResult<()> {
 
         self.tick += dt;
@@ -63,17 +99,8 @@ impl EventHandler for MainState {
 
         self.tick = Duration::new(0, 0);
 
-        let direction = match &self.input {
-            &Some(ref dir) => {
-                let direction = self.ecs.borrow_mut::<Direction>(self.player).unwrap();
-                let dir = dir.clone();
-                if direction.oppisite() != dir {
-                    *direction = dir;
-                }
-                direction.clone()
-            }
-            &None => self.ecs.borrow::<Direction>(self.player).unwrap().clone(),
-        };
+        let direction = self.update_direction();
+
         // reset buffered input
         self.input = None;
 
@@ -99,23 +126,7 @@ impl EventHandler for MainState {
                 self.dot = None;
             }
         } else {
-
-            let screen = graphics::get_screen_coordinates(ctx);
-            let x_range = rand::distributions::Range::new(1, (screen.w / 10.0) as u32 - 1 );
-            let y_range = rand::distributions::Range::new(1, (-screen.h / 10.0) as u32 - 1 );
-            let mut rng = rand::thread_rng();
-
-            let x: f32 = x_range.ind_sample(&mut rng) as f32 * 10.0;
-            let y: f32 = y_range.ind_sample(&mut rng) as f32 * 10.0;
-
-            let dot_pos = Point::new(x, y);
-            println!("{:?}", dot_pos);
-            println!("{:?}", screen);
-
-            let dot_id = self.ecs.create_entity();
-            let _ = self.ecs.set(dot_id, dot_pos);
-            
-            self.dot = Some(dot_id);
+            self.create_dot(ctx);
         }
 
 
