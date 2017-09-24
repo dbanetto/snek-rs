@@ -8,8 +8,7 @@ use std::time::Duration;
 use std::collections::VecDeque;
 
 use ecs::*;
-use rand::{Rng, ThreadRng};
-use rand::distributions::{IndependentSample, Range};
+use rand::distributions::IndependentSample;
 
 use recs::*;
 use ggez::conf::Conf;
@@ -17,7 +16,7 @@ use ggez::Context;
 use ggez::event::*;
 use ggez::GameResult;
 use ggez::graphics;
-use ggez::graphics::{Point, Color};
+use ggez::graphics::{Point, Color, Rect};
 
 struct MainState {
     player: EntityId,
@@ -33,10 +32,12 @@ impl MainState {
         let mut ecs = Ecs::new();
 
         let player = ecs.create_entity();
-        let _ = ecs.set(player, Point::new(50.0, 50.0));
+        let player_pos = Point::new(50.0, 50.0);
+        let _ = ecs.set(player, player_pos);
         let mut tail = VecDeque::with_capacity(10);
-        tail.push_front(Direction::East);
-        tail.push_front(Direction::East);
+        tail.push_front(player_pos);
+        tail.push_front(player_pos);
+        tail.push_front(player_pos);
         let _ = ecs.set(player, tail);
         let _ = ecs.set(player, Direction::East);
         let _ = ecs.set(player, Object::Player);
@@ -53,7 +54,6 @@ impl MainState {
 }
 
 impl MainState {
-
     fn update_direction(&mut self) -> Direction {
         match &self.input {
             &Some(ref dir) => {
@@ -69,22 +69,43 @@ impl MainState {
     }
 
     fn create_dot(&mut self, ctx: &mut Context) {
-            let screen = graphics::get_screen_coordinates(ctx);
-            let x_range = rand::distributions::Range::new(1, (screen.w / 10.0) as u32 - 1);
-            let y_range = rand::distributions::Range::new(1, (-screen.h / 10.0) as u32 - 1);
-            let mut rng = rand::thread_rng();
+        let screen = graphics::get_screen_coordinates(ctx);
+        let x_range = rand::distributions::Range::new(1, (screen.w / 10.0) as u32 - 1);
+        let y_range = rand::distributions::Range::new(1, (-screen.h / 10.0) as u32 - 1);
+        let mut rng = rand::thread_rng();
 
-            let x: f32 = x_range.ind_sample(&mut rng) as f32 * 10.0;
-            let y: f32 = y_range.ind_sample(&mut rng) as f32 * 10.0;
+        let x: f32 = x_range.ind_sample(&mut rng) as f32 * 10.0;
+        let y: f32 = y_range.ind_sample(&mut rng) as f32 * 10.0;
 
-            let dot_pos = Point::new(x, y);
+        let dot_pos = Point::new(x, y);
 
-            let dot_id = self.ecs.create_entity();
-            let _ = self.ecs.set(dot_id, dot_pos);
+        let dot_id = self.ecs.create_entity();
+        let _ = self.ecs.set(dot_id, dot_pos);
 
-            self.dot = Some(dot_id);
+        self.dot = Some(dot_id);
     }
 
+    fn handle_tail(&mut self, keep_tail: bool) {
+        let pos = {
+            self.ecs.borrow::<Point>(self.player).unwrap().clone()
+        };
+        let path = self.ecs.borrow_mut::<VecDeque<Point>>(self.player).unwrap();
+
+        let _ = path.pop_back();
+
+        if path.iter().any(|p| p == &pos) {
+            println!("{:?} is in {:?}", pos, path);
+            println!("COLLISION");
+        }
+
+        let _ = path.push_front(pos);
+
+        // Ensures that the tail growth only effects player after
+        // the tail leaves the dot posision
+        if keep_tail {
+            let _ = path.push_front(pos);
+        }
+    }
 }
 
 impl EventHandler for MainState {
@@ -92,6 +113,7 @@ impl EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context, dt: Duration) -> GameResult<()> {
 
         self.tick += dt;
+
         // check if an update tick is in order
         if self.tick <= Duration::new(0, self.tick_duration) {
             return Ok(());
@@ -130,17 +152,7 @@ impl EventHandler for MainState {
         }
 
 
-        {
-            let path = self.ecs
-                .borrow_mut::<VecDeque<Direction>>(self.player)
-                .unwrap();
-
-            if !keep_tail {
-                let _ = path.pop_back();
-            }
-
-            let _ = path.push_front(direction);
-        }
+        self.handle_tail(keep_tail);
 
         Ok(())
     }
@@ -148,17 +160,28 @@ impl EventHandler for MainState {
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx);
 
-
-        graphics::set_line_width(ctx, 8.0);
         let _ = graphics::set_color(ctx, Color::from((100, 100, 255)));
-        let path = self.ecs.borrow::<VecDeque<Direction>>(self.player).unwrap();
-        let point = self.ecs.borrow::<Point>(self.player).unwrap();
-        let _ = graphics::line(ctx, Direction::to_points(point, path, 10.0).as_ref());
+        let path = self.ecs.borrow::<VecDeque<Point>>(self.player).unwrap();
+
+        for tail in path {
+            let _ = graphics::rectangle(
+                ctx,
+                graphics::DrawMode::Fill,
+                Rect::new(tail.x - 5.0, tail.y - 5.0, 10.0, 10.0),
+            );
+        }
 
         if let Some(dot_id) = self.dot {
             let _ = graphics::set_color(ctx, Color::from((255, 100, 100)));
             let point = self.ecs.borrow::<Point>(dot_id).unwrap();
-            let _ = graphics::circle(ctx, graphics::DrawMode::Fill, *point, 5.0, 5);
+
+            let _ = graphics::circle(
+                ctx,
+                graphics::DrawMode::Fill,
+                Point::new(point.x - 5.0, point.y - 5.0),
+                5.0,
+                5,
+            );
         }
 
         graphics::present(ctx);

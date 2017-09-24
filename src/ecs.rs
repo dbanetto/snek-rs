@@ -36,19 +36,12 @@ impl Direction {
         }
     }
 
-
-    pub fn to_points(start: &Point, path: &VecDeque<Direction>, delta: f32) -> Vec<Point> {
-
-        let mut points = Vec::with_capacity(1 + path.len());
-        let mut pos = start.clone();
-
-        points.push(pos);
-
-        for d in path {
-            d.oppisite().update_point(&mut pos, delta);
-            points.push(pos);
+    pub fn move_by(&self, start: &Point, delta: f32) -> Point {
+        match self {
+            &Direction::North => Point::new(start.x, start.y - delta),
+            &Direction::East => Point::new(start.x + delta, start.y),
+            &Direction::South => Point::new(start.x, start.y + delta),
+            &Direction::West => Point::new(start.x - delta, start.y),
         }
-
-        points
     }
 }
