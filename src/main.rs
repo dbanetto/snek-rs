@@ -35,12 +35,15 @@ impl MainState {
         let player_pos = Point::new(50.0, 50.0);
         let _ = ecs.set(player, player_pos);
         let mut tail = VecDeque::with_capacity(10);
+
+        // start the player with a 3 length tail
         tail.push_front(player_pos);
         tail.push_front(player_pos);
         tail.push_front(player_pos);
+
         let _ = ecs.set(player, tail);
         let _ = ecs.set(player, Direction::East);
-        let _ = ecs.set(player, Object::Player);
+        let _ = ecs.set(player, Player);
 
         MainState {
             player: player,
@@ -51,9 +54,7 @@ impl MainState {
             dot: None,
         }
     }
-}
 
-impl MainState {
     fn update_direction(&mut self) -> Direction {
         match &self.input {
             &Some(ref dir) => {
@@ -81,6 +82,7 @@ impl MainState {
 
         let dot_id = self.ecs.create_entity();
         let _ = self.ecs.set(dot_id, dot_pos);
+        let _ = self.ecs.set(dot_id, Dot);
 
         self.dot = Some(dot_id);
     }
@@ -105,6 +107,24 @@ impl MainState {
         if keep_tail {
             let _ = path.push_front(pos);
         }
+    }
+
+    fn build_wall(&mut self, ctx: &mut Context) {
+        let screen = graphics::get_screen_coordinates(ctx);
+        println!("{:?}", screen);
+
+        let top_id = self.ecs.create_entity();
+        let _ = self.ecs.set(top_id, Wall {
+           top_left: Point::new(0.0, 0.0),
+           bottom_right: Point::new(screen.w * 2.0, 20.0),
+        });
+
+        let bottom_id = self.ecs.create_entity();
+        let _ = self.ecs.set(bottom_id, Wall {
+           top_left: Point::new(0.0, screen.y * 2.0 - 10.0),
+           bottom_right: Point::new(screen.w * 2.0, screen.y * 2.0),
+        });
+
     }
 }
 
@@ -184,6 +204,22 @@ impl EventHandler for MainState {
             );
         }
 
+        let mut wall = vec![];
+        let wall_filter = component_filter!(Wall);
+        let _ = graphics::set_color(ctx, Color::from((100, 100, 100)));
+        self.ecs.collect_with(&wall_filter, &mut wall);
+        for id in wall {
+            let wall = self.ecs.borrow::<Wall>(id).unwrap();
+            let _ = graphics::rectangle(
+                ctx,
+                graphics::DrawMode::Fill,
+                Rect::new(wall.top_left.x, wall.top_left.y,
+                          wall.bottom_right.x, wall.bottom_right.y),
+            );
+
+            println!("{:?}", wall);
+        }
+
         graphics::present(ctx);
         Ok(())
     }
@@ -200,10 +236,14 @@ impl EventHandler for MainState {
 }
 
 fn main() {
-    let conf = Conf::new();
+    let mut conf = Conf::new();
+    conf.window_height = 400;
+    conf.window_width = 400;
+    conf.window_title = "snek".to_owned();
 
     let mut context = Context::load_from_conf("snek", "snek", conf).unwrap();
     let mut state = MainState::new();
+    state.build_wall(&mut context);
 
     if let Err(err) = run(&mut context, &mut state) {
         println!("{:?}", err);

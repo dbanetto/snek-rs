@@ -1,13 +1,16 @@
-use std::collections::VecDeque;
 use ggez::graphics::Point;
 
 #[derive(Clone, PartialEq, Debug)]
-pub enum Object {
-    Player,
-    Wall,
-    Dot,
-    Fruit,
+pub struct Player;
+#[derive(Clone, PartialEq, Debug)]
+pub struct Wall {
+    pub top_left: Point,
+    pub bottom_right: Point,
 }
+#[derive(Clone, PartialEq, Debug)]
+pub struct Dot;
+#[derive(Clone, PartialEq, Debug)]
+pub struct Fruit;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Direction {
