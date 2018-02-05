@@ -217,6 +217,11 @@ impl EventHandler for MainState {
             println!("WALL COLLISION!!");
         }
 
+        if keep_tail {
+            // speed up over time
+            self.tick_duration = (self.tick_duration as f64 * 0.98) as u32
+        }
+
         Ok(())
     }
 
