@@ -70,7 +70,7 @@ impl MainState {
     fn create_dot(&mut self, ctx: &mut Context) {
         let screen = graphics::get_screen_coordinates(ctx);
         let x_range = rand::distributions::Range::new(1, (screen.w / 10.0) as u32 - 1);
-        let y_range = rand::distributions::Range::new(1, (-screen.h / 10.0) as u32 - 1);
+        let y_range = rand::distributions::Range::new(1, (screen.h / 10.0) as u32 - 1);
         let mut rng = rand::thread_rng();
 
         let x: f32 = x_range.ind_sample(&mut rng) as f32 * 10.0;
@@ -195,7 +195,7 @@ impl EventHandler for MainState {
             let _ = graphics::circle(
                 ctx,
                 graphics::DrawMode::Fill,
-                Point2::new(point.x, point.y),
+                Point2::new(point.x + 5.0, point.y + 5.0),
                 5.0,
                 5.0,
             );
