@@ -40,13 +40,4 @@ impl Direction {
             &Direction::West => pnt.x -= delta,
         }
     }
-
-    pub fn move_by(&self, start: &Point2, delta: f32) -> Point2 {
-        match self {
-            &Direction::North => Point2::new(start.x, start.y - delta),
-            &Direction::East => Point2::new(start.x + delta, start.y),
-            &Direction::South => Point2::new(start.x, start.y + delta),
-            &Direction::West => Point2::new(start.x - delta, start.y),
-        }
-    }
 }
