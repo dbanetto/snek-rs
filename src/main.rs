@@ -11,12 +11,10 @@ use ecs::*;
 use rand::distributions::IndependentSample;
 
 use recs::*;
-use ggez::conf::Conf;
-use ggez::Context;
+use ggez::{ graphics, timer, Context, GameResult};
+use ggez::conf::{ self , Conf };
 use ggez::event::*;
-use ggez::GameResult;
-use ggez::graphics;
-use ggez::graphics::{Point, Color, Rect};
+use ggez::graphics::{Point2, Color, Rect};
 
 struct MainState {
     player: EntityId,
@@ -32,7 +30,7 @@ impl MainState {
         let mut ecs = Ecs::new();
 
         let player = ecs.create_entity();
-        let player_pos = Point::new(50.0, 50.0);
+        let player_pos = Point2::new(50.0, 50.0);
         let _ = ecs.set(player, player_pos);
         let mut tail = VecDeque::with_capacity(10);
 
@@ -78,7 +76,7 @@ impl MainState {
         let x: f32 = x_range.ind_sample(&mut rng) as f32 * 10.0;
         let y: f32 = y_range.ind_sample(&mut rng) as f32 * 10.0;
 
-        let dot_pos = Point::new(x, y);
+        let dot_pos = Point2::new(x, y);
 
         let dot_id = self.ecs.create_entity();
         let _ = self.ecs.set(dot_id, dot_pos);
@@ -89,9 +87,9 @@ impl MainState {
 
     fn handle_tail(&mut self, keep_tail: bool) {
         let pos = {
-            self.ecs.borrow::<Point>(self.player).unwrap().clone()
+            self.ecs.borrow::<Point2>(self.player).unwrap().clone()
         };
-        let path = self.ecs.borrow_mut::<VecDeque<Point>>(self.player).unwrap();
+        let path = self.ecs.borrow_mut::<VecDeque<Point2>>(self.player).unwrap();
 
         let _ = path.pop_back();
 
@@ -115,14 +113,12 @@ impl MainState {
 
         let top_id = self.ecs.create_entity();
         let _ = self.ecs.set(top_id, Wall {
-           top_left: Point::new(0.0, 0.0),
-           bottom_right: Point::new(screen.w * 2.0, 20.0),
+           size: Rect::new(0.0, 0.0, screen.w, 10.0),
         });
 
         let bottom_id = self.ecs.create_entity();
         let _ = self.ecs.set(bottom_id, Wall {
-           top_left: Point::new(0.0, screen.y * 2.0 - 10.0),
-           bottom_right: Point::new(screen.w * 2.0, screen.y * 2.0),
+           size: Rect::new(0.0, screen.h - 10.0, screen.w, 10.0),
         });
 
     }
@@ -130,8 +126,9 @@ impl MainState {
 
 impl EventHandler for MainState {
 
-    fn update(&mut self, ctx: &mut Context, dt: Duration) -> GameResult<()> {
+    fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
 
+        let dt = timer::get_delta(ctx);
         self.tick += dt;
 
         // check if an update tick is in order
@@ -147,7 +144,7 @@ impl EventHandler for MainState {
         self.input = None;
 
         {
-            let mut point = self.ecs.borrow_mut::<Point>(self.player).unwrap();
+            let mut point = self.ecs.borrow_mut::<Point2>(self.player).unwrap();
             direction.update_point(&mut point, 10.0);
         }
 
@@ -155,8 +152,8 @@ impl EventHandler for MainState {
 
         if let Some(dot_id) = self.dot {
             {
-                let pos = self.ecs.borrow::<Point>(self.player).unwrap();
-                let dot_pos = self.ecs.borrow::<Point>(dot_id).unwrap();
+                let pos = self.ecs.borrow::<Point2>(self.player).unwrap();
+                let dot_pos = self.ecs.borrow::<Point2>(dot_id).unwrap();
 
                 if dot_pos == pos {
                     keep_tail = true;
@@ -181,26 +178,26 @@ impl EventHandler for MainState {
         graphics::clear(ctx);
 
         let _ = graphics::set_color(ctx, Color::from((100, 100, 255)));
-        let path = self.ecs.borrow::<VecDeque<Point>>(self.player).unwrap();
+        let path = self.ecs.borrow::<VecDeque<Point2>>(self.player).unwrap();
 
         for tail in path {
             let _ = graphics::rectangle(
                 ctx,
                 graphics::DrawMode::Fill,
-                Rect::new(tail.x - 5.0, tail.y - 5.0, 10.0, 10.0),
+                Rect::new(tail.x, tail.y, 10.0, 10.0),
             );
         }
 
         if let Some(dot_id) = self.dot {
             let _ = graphics::set_color(ctx, Color::from((255, 100, 100)));
-            let point = self.ecs.borrow::<Point>(dot_id).unwrap();
+            let point = self.ecs.borrow::<Point2>(dot_id).unwrap();
 
             let _ = graphics::circle(
                 ctx,
                 graphics::DrawMode::Fill,
-                Point::new(point.x - 5.0, point.y - 5.0),
+                Point2::new(point.x, point.y),
                 5.0,
-                5,
+                5.0,
             );
         }
 
@@ -213,18 +210,15 @@ impl EventHandler for MainState {
             let _ = graphics::rectangle(
                 ctx,
                 graphics::DrawMode::Fill,
-                Rect::new(wall.top_left.x, wall.top_left.y,
-                          wall.bottom_right.x, wall.bottom_right.y),
+                wall.size,
             );
-
-            println!("{:?}", wall);
         }
 
         graphics::present(ctx);
         Ok(())
     }
 
-    fn key_down_event(&mut self, keycode: Keycode, _keymod: Mod, _repeat: bool) {
+    fn key_down_event(&mut self, _ctx: &mut Context, keycode: Keycode, _keymod: Mod, _repeat: bool) {
         self.input = match keycode {
             Keycode::W => Some(Direction::North),
             Keycode::D => Some(Direction::East),
@@ -236,10 +230,18 @@ impl EventHandler for MainState {
 }
 
 fn main() {
-    let mut conf = Conf::new();
-    conf.window_height = 400;
-    conf.window_width = 400;
-    conf.window_title = "snek".to_owned();
+    let conf = Conf {
+        window_mode: conf::WindowMode {
+            width: 400,
+            height: 400,
+            ..conf::WindowMode::default()
+        },
+        window_setup: conf::WindowSetup {
+            title: "snek".to_owned(),
+            ..conf::WindowSetup::default()
+        },
+        backend: conf::Backend::default(),
+    };
 
     let mut context = Context::load_from_conf("snek", "snek", conf).unwrap();
     let mut state = MainState::new();

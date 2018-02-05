@@ -2,9 +2,10 @@
 authors = ["David Barnett <david@barnett.net.nz>"]
 name = "snek"
 version = "0.1.0"
+
 [dependencies]
-ggez = "0.3.3"
-rand = "0.3.16"
+ggez = "0.4.0"
+rand = "0.4.2"
 recs = "2.0.1"
 
 [features]

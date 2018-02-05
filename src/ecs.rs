@@ -1,11 +1,10 @@
-use ggez::graphics::Point;
+use ggez::graphics::{Point2, Rect};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Player;
 #[derive(Clone, PartialEq, Debug)]
 pub struct Wall {
-    pub top_left: Point,
-    pub bottom_right: Point,
+    pub size: Rect,
 }
 #[derive(Clone, PartialEq, Debug)]
 pub struct Dot;
@@ -30,7 +29,7 @@ impl Direction {
         }
     }
 
-    pub fn update_point(&self, pnt: &mut Point, delta: f32) {
+    pub fn update_point(&self, pnt: &mut Point2, delta: f32) {
         match self {
             &Direction::North => pnt.y -= delta,
             &Direction::East => pnt.x += delta,
@@ -39,12 +38,12 @@ impl Direction {
         }
     }
 
-    pub fn move_by(&self, start: &Point, delta: f32) -> Point {
+    pub fn move_by(&self, start: &Point2, delta: f32) -> Point2 {
         match self {
-            &Direction::North => Point::new(start.x, start.y - delta),
-            &Direction::East => Point::new(start.x + delta, start.y),
-            &Direction::South => Point::new(start.x, start.y + delta),
-            &Direction::West => Point::new(start.x - delta, start.y),
+            &Direction::North => Point2::new(start.x, start.y - delta),
+            &Direction::East => Point2::new(start.x + delta, start.y),
+            &Direction::South => Point2::new(start.x, start.y + delta),
+            &Direction::West => Point2::new(start.x - delta, start.y),
         }
     }
 }
