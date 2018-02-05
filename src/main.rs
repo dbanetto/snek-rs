@@ -1,6 +1,6 @@
 extern crate ggez;
-extern crate recs;
 extern crate rand;
+extern crate recs;
 
 mod ecs;
 
@@ -11,10 +11,10 @@ use ecs::*;
 use rand::distributions::IndependentSample;
 
 use recs::*;
-use ggez::{ graphics, timer, Context, GameResult};
-use ggez::conf::{ self , Conf };
+use ggez::{graphics, timer, Context, GameResult};
+use ggez::conf::{self, Conf};
 use ggez::event::*;
-use ggez::graphics::{Point2, Color, Rect};
+use ggez::graphics::{Color, Point2, Rect};
 
 struct MainState {
     player: EntityId,
@@ -86,10 +86,10 @@ impl MainState {
     }
 
     fn handle_tail(&mut self, keep_tail: bool) {
-        let pos = {
-            self.ecs.borrow::<Point2>(self.player).unwrap().clone()
-        };
-        let path = self.ecs.borrow_mut::<VecDeque<Point2>>(self.player).unwrap();
+        let pos = { self.ecs.borrow::<Point2>(self.player).unwrap().clone() };
+        let path = self.ecs
+            .borrow_mut::<VecDeque<Point2>>(self.player)
+            .unwrap();
 
         let _ = path.pop_back();
 
@@ -109,25 +109,27 @@ impl MainState {
 
     fn build_wall(&mut self, ctx: &mut Context) {
         let screen = graphics::get_screen_coordinates(ctx);
-        println!("{:?}", screen);
 
         let top_id = self.ecs.create_entity();
-        let _ = self.ecs.set(top_id, Wall {
-           size: Rect::new(0.0, 0.0, screen.w, 10.0),
-        });
+        let _ = self.ecs.set(
+            top_id,
+            Wall {
+                size: Rect::new(0.0, 0.0, screen.w, 10.0),
+            },
+        );
 
         let bottom_id = self.ecs.create_entity();
-        let _ = self.ecs.set(bottom_id, Wall {
-           size: Rect::new(0.0, screen.h - 10.0, screen.w, 10.0),
-        });
-
+        let _ = self.ecs.set(
+            bottom_id,
+            Wall {
+                size: Rect::new(0.0, screen.h - 10.0, screen.w, 10.0),
+            },
+        );
     }
 }
 
 impl EventHandler for MainState {
-
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
-
         let dt = timer::get_delta(ctx);
         self.tick += dt;
 
@@ -177,7 +179,9 @@ impl EventHandler for MainState {
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx);
 
+
         let _ = graphics::set_color(ctx, Color::from((100, 100, 255)));
+
         let path = self.ecs.borrow::<VecDeque<Point2>>(self.player).unwrap();
 
         for tail in path {
@@ -207,25 +211,34 @@ impl EventHandler for MainState {
         self.ecs.collect_with(&wall_filter, &mut wall);
         for id in wall {
             let wall = self.ecs.borrow::<Wall>(id).unwrap();
-            let _ = graphics::rectangle(
-                ctx,
-                graphics::DrawMode::Fill,
-                wall.size,
-            );
+            let _ = graphics::rectangle(ctx, graphics::DrawMode::Fill, wall.size);
         }
 
         graphics::present(ctx);
         Ok(())
     }
 
-    fn key_down_event(&mut self, _ctx: &mut Context, keycode: Keycode, _keymod: Mod, _repeat: bool) {
-        self.input = match keycode {
-            Keycode::W => Some(Direction::North),
-            Keycode::D => Some(Direction::East),
-            Keycode::S => Some(Direction::South),
-            Keycode::A => Some(Direction::West),
+    fn key_down_event(
+        &mut self,
+        _ctx: &mut Context,
+        keycode: Keycode,
+        _keymod: Mod,
+        _repeat: bool,
+    ) {
+        let selected_dir = match keycode {
+            Keycode::W => Direction::North,
+            Keycode::D => Direction::East,
+            Keycode::S => Direction::South,
+            Keycode::A => Direction::West,
             _ => return,
         };
+
+        let back = self.ecs.borrow::<Direction>(self.player).unwrap();
+        let curr = self.input.clone().unwrap_or(back.clone());
+
+        if selected_dir != back.oppisite() && selected_dir != curr.oppisite() {
+            self.input = Some(selected_dir);
+        }
     }
 }
 

@@ -2,12 +2,15 @@ use ggez::graphics::{Point2, Rect};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Player;
+
 #[derive(Clone, PartialEq, Debug)]
 pub struct Wall {
     pub size: Rect,
 }
+
 #[derive(Clone, PartialEq, Debug)]
 pub struct Dot;
+
 #[derive(Clone, PartialEq, Debug)]
 pub struct Fruit;
 
