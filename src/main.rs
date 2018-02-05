@@ -94,7 +94,7 @@ impl MainState {
         let _ = path.pop_back();
 
         if path.iter().any(|p| p == &pos) {
-            println!("{:?} is in {:?}", pos, path);
+            println!("{:?} is in {:?}", pos, path.len());
             println!("COLLISION");
         }
 
@@ -126,6 +126,49 @@ impl MainState {
             },
         );
     }
+
+    fn update_position(&mut self, ctx: &mut Context, dir: &Direction) {
+        let screen = graphics::get_screen_coordinates(ctx);
+
+        let mut point = self.ecs.borrow_mut::<Point2>(self.player).unwrap();
+        dir.update_point(&mut point, 10.0);
+
+        // handle wrapping around the screen
+        if !screen.contains(point.clone()) {
+            if point.x < 0.0 {
+                point.x = screen.w - 10.0;
+            } else if point.x >= screen.w {
+                point.x = 0.0;
+            }
+            if point.y < 0.0 {
+                point.y = screen.h - 10.0;
+            } else if point.y >= screen.h {
+                point.y = 0.0;
+            }
+        }
+    }
+
+    fn has_hit_wall(&self) -> bool {
+        let mut point = self.ecs.borrow::<Point2>(self.player).unwrap().clone();
+
+        // center point to middle of box
+        point.x += 5.0;
+        point.y += 5.0;
+
+        let filter = component_filter!(Wall);
+        let mut wall_ids = vec![];
+        let _ = self.ecs.collect_with(&filter, &mut wall_ids);
+
+        for id in wall_ids {
+            let wall = self.ecs.borrow::<Wall>(id).unwrap();
+
+            if wall.size.contains(point) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
 
 impl EventHandler for MainState {
@@ -145,10 +188,7 @@ impl EventHandler for MainState {
         // reset buffered input
         self.input = None;
 
-        {
-            let mut point = self.ecs.borrow_mut::<Point2>(self.player).unwrap();
-            direction.update_point(&mut point, 10.0);
-        }
+        self.update_position(ctx, &direction);
 
         let mut keep_tail = false;
 
@@ -172,6 +212,10 @@ impl EventHandler for MainState {
 
 
         self.handle_tail(keep_tail);
+
+        if self.has_hit_wall() {
+            println!("WALL COLLISION!!");
+        }
 
         Ok(())
     }
