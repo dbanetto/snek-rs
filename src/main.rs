@@ -134,17 +134,15 @@ impl MainState {
         dir.update_point(&mut point, 10.0);
 
         // handle wrapping around the screen
-        if !screen.contains(point.clone()) {
-            if point.x < 0.0 {
-                point.x = screen.w - 10.0;
-            } else if point.x >= screen.w {
-                point.x = 0.0;
-            }
-            if point.y < 0.0 {
-                point.y = screen.h - 10.0;
-            } else if point.y >= screen.h {
-                point.y = 0.0;
-            }
+        if point.x < 0.0 {
+            point.x = screen.w - 10.0;
+        } else if point.x >= screen.w {
+            point.x = 0.0;
+        }
+        if point.y < 0.0 {
+            point.y = screen.h - 10.0;
+        } else if point.y >= screen.h {
+            point.y = 0.0;
         }
     }
 
@@ -159,15 +157,34 @@ impl MainState {
         let mut wall_ids = vec![];
         let _ = self.ecs.collect_with(&filter, &mut wall_ids);
 
-        for id in wall_ids {
-            let wall = self.ecs.borrow::<Wall>(id).unwrap();
+        wall_ids
+            .into_iter()
+            .map(|id| self.ecs.borrow::<Wall>(id).unwrap())
+            .any(|wall| wall.size.contains(point))
+    }
 
-            if wall.size.contains(point) {
-                return true;
+    fn handle_dot(&mut self, ctx: &mut Context) -> bool {
+        let mut keep_tail = false;
+
+        if let Some(dot_id) = self.dot {
+            {
+                let pos = self.ecs.borrow::<Point2>(self.player).unwrap();
+                let dot_pos = self.ecs.borrow::<Point2>(dot_id).unwrap();
+
+                if dot_pos == pos {
+                    keep_tail = true;
+                }
             }
+
+            if keep_tail {
+                let _ = self.ecs.destroy_entity(dot_id);
+                self.dot = None;
+            }
+        } else {
+            self.create_dot(ctx);
         }
 
-        return false;
+        keep_tail
     }
 }
 
@@ -190,26 +207,7 @@ impl EventHandler for MainState {
 
         self.update_position(ctx, &direction);
 
-        let mut keep_tail = false;
-
-        if let Some(dot_id) = self.dot {
-            {
-                let pos = self.ecs.borrow::<Point2>(self.player).unwrap();
-                let dot_pos = self.ecs.borrow::<Point2>(dot_id).unwrap();
-
-                if dot_pos == pos {
-                    keep_tail = true;
-                }
-            }
-
-            if keep_tail {
-                let _ = self.ecs.destroy_entity(dot_id);
-                self.dot = None;
-            }
-        } else {
-            self.create_dot(ctx);
-        }
-
+        let keep_tail = self.handle_dot(ctx);
 
         self.handle_tail(keep_tail);
 
@@ -283,9 +281,9 @@ impl EventHandler for MainState {
         };
 
         let back = self.ecs.borrow::<Direction>(self.player).unwrap();
-        let curr = self.input.clone().unwrap_or(back.clone());
 
-        if selected_dir != back.oppisite() && selected_dir != curr.oppisite() {
+        // prevent player from selecting backwards onto themselves
+        if selected_dir != back.oppisite() {
             self.input = Some(selected_dir);
         }
     }
